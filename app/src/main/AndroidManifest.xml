@@ -28,17 +28,25 @@
             android:label="@string/title_activity_token"
             android:theme="@style/AppTheme.NoActionBar" />
 
-        <!--
-        <receiver android:name="home.PhoneStateReceiver">
+       <!-- <receiver android:name="home.PhoneStateReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>
-        </receiver>
-        -->
+        </receiver>-->
+
         <receiver
             android:name="home.UserDefinedBroadcastReceiver"
             android:enabled="true"
             android:exported="true"></receiver>
+
+        <service
+            android:name="home.MyJobService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.firebase.jobdispatcher.ACTION_EXECUTE" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

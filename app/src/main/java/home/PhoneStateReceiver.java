@@ -47,7 +47,7 @@ public class PhoneStateReceiver extends BroadcastReceiver {
                 telephonyService.silenceRinger();
                 telephonyService.endCall();
 
-                sendSMS(incomingNumber,"Your token no is ");
+                //sendSMS(incomingNumber,"Your token no is ");
 
             } catch (Exception e) {
                 e.printStackTrace();
