@@ -38,15 +38,6 @@ class MyJobService : JobService() {
     }
 
     override fun onDestroy() {
-
-        try {
-            if (phoneStateReceiver != null)
-                Log.d(TAG, "unregisterReceiver")
-            unregisterReceiver(phoneStateReceiver)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         super.onDestroy()
     }
 
