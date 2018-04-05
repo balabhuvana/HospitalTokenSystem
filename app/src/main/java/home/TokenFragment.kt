@@ -3,9 +3,12 @@ package home
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
+import android.content.ComponentName
+import android.content.Context
 import android.content.IntentFilter
 import android.os.Bundle
-import android.os.Handler
 import android.support.v4.app.Fragment
 import android.util.Log
 import android.view.LayoutInflater
@@ -16,12 +19,12 @@ import com.firebase.jobdispatcher.*
 import com.hospital.tokensystem.R
 import kotlinx.android.synthetic.main.fragment_token.*
 import org.joda.time.DateTime
-import org.joda.time.Duration
-import org.joda.time.LocalDateTime
 import org.joda.time.Minutes
-import java.text.ParseException
-import java.text.SimpleDateFormat
 import java.util.*
+import android.app.PendingIntent
+import android.app.AlarmManager
+import android.os.SystemClock
+import android.content.Intent
 
 
 /**
@@ -31,14 +34,17 @@ class TokenFragment : Fragment() {
 
     private var TAG: String = TokenFragment::class.java.simpleName
     private val phoneStateReceiver = PhoneStateReceiver()
-    private var isReceiverListening = false
-    var mHandler: Handler? = null
     private var db: HospitalityDBHelper? = null
     private var dispatcher: FirebaseJobDispatcher? = null
     private var timePickerDialog: TimePickerDialog? = null
     private var datePickerDialog: DatePickerDialog? = null
     private var calendar: Calendar? = null
     private var futureDateTime: JobDateTime? = null
+    private var startSecond = 0
+    private var jobScheduler: JobScheduler? = null
+    private var serviceComponent: ComponentName? = null
+    private var alarmMgr: AlarmManager? = null
+    private var alarmIntent: PendingIntent? = null
 
     override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -53,12 +59,14 @@ class TokenFragment : Fragment() {
         dispatcher = FirebaseJobDispatcher(GooglePlayDriver(context))
         calendar = Calendar.getInstance()
         futureDateTime = JobDateTime()
+        jobScheduler = context.getSystemService(JobScheduler::class.java)
+        serviceComponent = ComponentName(context, TestJobService::class.java)
 
 
         btnSetTime.setOnClickListener {
-            var c = Calendar.getInstance();
-            var mHour = c.get(Calendar.HOUR_OF_DAY);
-            var mMinute = c.get(Calendar.MINUTE);
+            val c = Calendar.getInstance()
+            val mHour = c.get(Calendar.HOUR_OF_DAY)
+            val mMinute = c.get(Calendar.MINUTE)
 
             timePickerDialog = TimePickerDialog(getContext(),
                     TimePickerDialog.OnTimeSetListener { view, hourOfDay, minute ->
@@ -73,9 +81,9 @@ class TokenFragment : Fragment() {
 
         btnSetDate.setOnClickListener {
             val c = Calendar.getInstance()
-            var mYear = c.get(Calendar.YEAR)
-            var mMonth = c.get(Calendar.MONTH)
-            var mDay = c.get(Calendar.DAY_OF_MONTH)
+            val mYear = c.get(Calendar.YEAR)
+            val mMonth = c.get(Calendar.MONTH)
+            val mDay = c.get(Calendar.DAY_OF_MONTH)
 
 
             datePickerDialog = DatePickerDialog(activity,
@@ -90,18 +98,20 @@ class TokenFragment : Fragment() {
         }
 
         btnAddAppoinment.setOnClickListener {
-            var jobModel = JobModel(tvTime.text.toString(), tvDate.text.toString(), "No")
-
-            db?.insertJob(jobModel)
+            db?.insertJob(futureDateTime!!)
         }
 
         btnShowAllJobs.setOnClickListener {
-            var alJobModel: ArrayList<JobModel> = db!!.readJob()
+            val alJobModel: ArrayList<JobDateTime> = db!!.readJob()
 
             for (item in alJobModel) {
                 Log.d(TAG, "" + item.jobId)
-                Log.d(TAG, "" + item.jobDate)
-                Log.d(TAG, "" + item.isScheduled)
+                Log.d(TAG, "" + item.dateString)
+                Log.d(TAG, "" + item.monthString)
+                Log.d(TAG, "" + item.yearString)
+                Log.d(TAG, "" + item.hourString)
+                Log.d(TAG, "" + item.minuteString)
+                Log.d(TAG, "" + item.scheduleString)
             }
         }
 
@@ -110,17 +120,24 @@ class TokenFragment : Fragment() {
         }
 
         btnCreateJob.setOnClickListener {
-            getDateAndTimeObject()
-            //createFireBaseDispatcher("my-first-job", 0, calendar?.get(Calendar.SECOND)!!.plus(60).toLong())
-            //createFireBaseDispatcher("my-second-job", 180, calendar?.get(Calendar.SECOND)!!.plus(300).toLong())
-            //createFireBaseDispatcher("my-first-job", 0, 60)
-            //createFireBaseDispatcher("my-second-job", 300, 480)
+
+            scheduleUsingAlarmManager()
+
+            // Using normal job schudule
+           /* val alJobModel: ArrayList<JobDateTime> = db!!.readJob()
+            for (item in alJobModel) {
+                Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item))
+                Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item) * 60)
+                scheduleJob(item.jobId!!.toInt(), getDateAndTimeObject(item) * 60)
+            }*/
+
+            /*// firebase
+            var alJobModel: ArrayList<JobDateTime> = db!!.readJob()
+            createFireBaseDispatcher("my-first-job-", 0, calendar?.get(Calendar.SECOND)!!.plus(getDateAndTimeObject(alJobModel.get(0)) * 60).toLong())
+            createFireBaseDispatcher("my-second-job-", 300, calendar?.get(Calendar.SECOND)!!.plus(getDateAndTimeObject(alJobModel.get(1)) * 60).toLong())
+*/
         }
 
-    }
-
-    fun milliSecondsCalculation(): Long? {
-        return calendar?.getTimeInMillis()
     }
 
     fun createFireBaseDispatcher(jobName: String, currentTime: Int, startTime: Long?) {
@@ -130,7 +147,7 @@ class TokenFragment : Fragment() {
 
         val myJob = dispatcher?.newJobBuilder()
                 // the JobService that will be called
-                ?.setService(MyJobService::class.java)
+                ?.setService(MyJobFireBaseService::class.java)
                 // uniquely identifies the job
                 ?.setTag(jobName)
                 // don't persist past a device reboot
@@ -149,88 +166,35 @@ class TokenFragment : Fragment() {
 
     }
 
-    fun createFireBaseDispatcherTwo(jobName: String, currentTime: Int, startTime: Int) {
-
-        val myExtrasBundle = Bundle()
-        myExtrasBundle.putString("job_name", jobName)
-
-        val myJob = dispatcher?.newJobBuilder()
-                // the JobService that will be called
-                ?.setService(MyJobService::class.java)
-                // uniquely identifies the job
-                ?.setTag(jobName)
-                // don't persist past a device reboot
-                ?.setLifetime(Lifetime.UNTIL_NEXT_BOOT)
-                // start between 0 and 60 seconds from now
-                ?.setTrigger(Trigger.executionWindow(currentTime, startTime))
-                // don't overwrite an existing job with the same tag
-                ?.setReplaceCurrent(false)
-                // retry with exponential backoff
-                ?.setRetryStrategy(RetryStrategy.DEFAULT_EXPONENTIAL)
-                // constraints that need to be satisfied for the job to run
-                ?.setExtras(myExtrasBundle)
-                ?.build()
-
-        dispatcher?.mustSchedule(myJob)
-
-    }
-
-    fun scheduleAlarmHandler() {
-        mHandler = Handler()
-        mHandler?.apply {
-            postDelayed(mRunnable, 1000)
-        }
-    }
-
-    fun registerBroadcastReceiver() {
-        isReceiverListening = true
-        btnSetTime.isEnabled = false
-        //btnCancelTime.isEnabled = true
-        var phoneFilter = IntentFilter()
-        phoneFilter.addAction("android.intent.action.PHONE_STATE")
-        activity.registerReceiver(phoneStateReceiver, IntentFilter(
-                "android.intent.action.PHONE_STATE"));
-        Toast.makeText(activity, "Registered broadcast receiver", Toast.LENGTH_SHORT)
-                .show();
-    }
-
-    fun unRegisterBroadCastReceiver() {
-        isReceiverListening = false
-        //btnCancelTime.isEnabled = false
-        btnSetTime.isEnabled = true
-        activity.unregisterReceiver(phoneStateReceiver);
-        Toast.makeText(activity, "Un Registered broadcast receiver", Toast.LENGTH_SHORT)
-                .show();
-        mHandler?.removeCallbacks(mRunnable)
-    }
-
-    private val mRunnable = object : Runnable {
-
-        override fun run() {
-            Log.e("Handlers", "Calls")
-            /** Do something  */
-            if (!isReceiverListening) {
-                Log.e("Handlers", "mRunnable - inside - if")
-                registerBroadcastReceiver()
-            } else {
-                Log.e("Handlers", "mRunnable - inside - else")
-            }
-            mHandler?.postDelayed(this, 24 * 60 * 60)
-        }
-    }
-
-    private fun getDateAndTimeObject(): Long {
+    private fun getDateAndTimeObject(jobDateTime: JobDateTime): Int {
         var currentDate = DateTime()
-        Log.d(TAG, "CurrentDate - " + currentDate)
 
-        var featureDate = DateTime(futureDateTime?.yearString?.toInt()!!, futureDateTime?.monthString?.toInt()!!,
-                futureDateTime?.dateString?.toInt()!!, futureDateTime?.hourString?.toInt()!!, futureDateTime?.minuteString?.toInt()!!)
+        var featureDate = DateTime(jobDateTime?.yearString?.toInt()!!, jobDateTime?.monthString?.toInt()!!,
+                jobDateTime?.dateString?.toInt()!!, jobDateTime?.hourString?.toInt()!!, jobDateTime?.minuteString?.toInt()!!)
 
-        Log.d(TAG, "featureDate " + featureDate)
+        startSecond = Minutes.minutesBetween(currentDate, featureDate).getMinutes() * 60
 
-        Log.d(TAG, "diff  - " + Minutes.minutesBetween(currentDate, featureDate).getMinutes())
+        return Minutes.minutesBetween(currentDate, featureDate).getMinutes()
+    }
 
-        return Minutes.minutesBetween(currentDate, featureDate).getMinutes().toLong()
+    fun scheduleJob(jobId: Int, delay: Int) {
+        val builder = JobInfo.Builder(jobId, serviceComponent)
+        builder.setMinimumLatency((delay * 1000).toLong()) // wait at least
+        //builder.setOverrideDeadline((3 * 1000).toLong()) // maximum delay
+        //builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED); // require unmetered network
+        //builder.setRequiresDeviceIdle(false); // device should be idle
+        //builder.setRequiresCharging(false); // we don't care if the device is charging or not
+        builder.setRequiresDeviceIdle(false)
+        jobScheduler?.schedule(builder.build())
+    }
+
+    fun scheduleUsingAlarmManager() {
+        alarmMgr = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, AlarmReceiver::class.java)
+        alarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
+
+        alarmMgr!!.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + 60 * 1000, alarmIntent)
     }
 
 

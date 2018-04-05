@@ -10,6 +10,7 @@ import android.widget.Toast
 
 
 import com.android.internal.telephony.ITelephony
+import com.hospital.tokensystem.MyApplication
 
 import java.lang.reflect.Method
 
@@ -20,15 +21,23 @@ class PhoneStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         try {
 
-            myContext = context
-            val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
-            val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+            val mApplication = context.getApplicationContext() as MyApplication
 
-            Log.d(TAG, "incomingNumber - " + incomingNumber)
+            Log.d(TAG, "" + mApplication.isPhoneStateListening)
+            if (mApplication.isPhoneStateListening == true) {
+                Log.d(TAG, "onReceive - is triggering ")
+                myContext = context
+                val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+                val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
 
-            if (state == TelephonyManager.EXTRA_STATE_RINGING) {
-                Toast.makeText(context, "Ringing State Number is -", Toast.LENGTH_SHORT).show()
-                endCall(context)
+                Log.d(TAG, "incomingNumber - " + incomingNumber)
+
+                if (state == TelephonyManager.EXTRA_STATE_RINGING) {
+                    Toast.makeText(context, "Ringing State Number is -", Toast.LENGTH_SHORT).show()
+                    endCall(context)
+                }
+            } else if (mApplication.isPhoneStateListening == false) {
+                Log.d(TAG, "onReceive - is normal ")
             }
 
         } catch (e: Exception) {
