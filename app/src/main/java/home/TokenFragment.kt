@@ -45,6 +45,7 @@ class TokenFragment : Fragment() {
     private var serviceComponent: ComponentName? = null
     private var alarmMgr: AlarmManager? = null
     private var alarmIntent: PendingIntent? = null
+    private var intent: Intent? = null
 
     override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
@@ -62,6 +63,9 @@ class TokenFragment : Fragment() {
         jobScheduler = context.getSystemService(JobScheduler::class.java)
         serviceComponent = ComponentName(context, TestJobService::class.java)
 
+
+        alarmMgr = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        intent = Intent(context, AlarmReceiver::class.java)
 
         btnSetTime.setOnClickListener {
             val c = Calendar.getInstance()
@@ -121,15 +125,18 @@ class TokenFragment : Fragment() {
 
         btnCreateJob.setOnClickListener {
 
-            scheduleUsingAlarmManager()
+            val alJobModel: ArrayList<JobDateTime> = db!!.readJob()
+            for (item in alJobModel) {
+                scheduleUsingAlarmManager(item.jobId!!.toInt(), getDateAndTimeObject(item))
+            }
 
             // Using normal job schudule
-           /* val alJobModel: ArrayList<JobDateTime> = db!!.readJob()
-            for (item in alJobModel) {
-                Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item))
-                Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item) * 60)
-                scheduleJob(item.jobId!!.toInt(), getDateAndTimeObject(item) * 60)
-            }*/
+            /* val alJobModel: ArrayList<JobDateTime> = db!!.readJob()
+             for (item in alJobModel) {
+                 Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item))
+                 Log.d(TAG, "btnCreateJob - " + getDateAndTimeObject(item) * 60)
+                 scheduleJob(item.jobId!!.toInt(), getDateAndTimeObject(item) * 60)
+             }*/
 
             /*// firebase
             var alJobModel: ArrayList<JobDateTime> = db!!.readJob()
@@ -172,9 +179,9 @@ class TokenFragment : Fragment() {
         var featureDate = DateTime(jobDateTime?.yearString?.toInt()!!, jobDateTime?.monthString?.toInt()!!,
                 jobDateTime?.dateString?.toInt()!!, jobDateTime?.hourString?.toInt()!!, jobDateTime?.minuteString?.toInt()!!)
 
-        startSecond = Minutes.minutesBetween(currentDate, featureDate).getMinutes() * 60
+        startSecond = Minutes.minutesBetween(currentDate, featureDate).getMinutes()
 
-        return Minutes.minutesBetween(currentDate, featureDate).getMinutes()
+        return Minutes.minutesBetween(currentDate, featureDate).getMinutes() * 60 * 1000
     }
 
     fun scheduleJob(jobId: Int, delay: Int) {
@@ -188,14 +195,14 @@ class TokenFragment : Fragment() {
         jobScheduler?.schedule(builder.build())
     }
 
-    fun scheduleUsingAlarmManager() {
-        alarmMgr = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, AlarmReceiver::class.java)
-        alarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
+    fun scheduleUsingAlarmManager(jobId: Int, delay: Int) {
 
+        Log.d(TAG, " scheduleUsingAlarmManager - " + delay)
+
+        alarmIntent = PendingIntent.getBroadcast(context, jobId, intent, 0)
         alarmMgr!!.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + 60 * 1000, alarmIntent)
-    }
+                SystemClock.elapsedRealtime() + delay, alarmIntent)
 
+    }
 
 }// Required empty public constructor
