@@ -4,6 +4,8 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.content.Intent
 import android.os.Handler
+import net.hockeyapp.android.UpdateManager
+import net.hockeyapp.android.CrashManager
 
 
 class SplashActivity : AppCompatActivity() {
@@ -29,4 +31,34 @@ class SplashActivity : AppCompatActivity() {
             finish()
         }, SPLASH_TIME_OUT.toLong())
     }
+
+    public override fun onResume() {
+        super.onResume()
+        // ... your own onResume implementation
+        checkForCrashes()
+    }
+
+    public override fun onPause() {
+        super.onPause()
+        unregisterManagers()
+    }
+
+    public override fun onDestroy() {
+        super.onDestroy()
+        unregisterManagers()
+    }
+
+    private fun checkForCrashes() {
+        CrashManager.register(this)
+    }
+
+    private fun checkForUpdates() {
+        // Remove this for store builds!
+        UpdateManager.register(this)
+    }
+
+    private fun unregisterManagers() {
+        UpdateManager.unregister()
+    }
+
 }

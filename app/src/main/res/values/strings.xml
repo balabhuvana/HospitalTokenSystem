@@ -9,4 +9,6 @@
     <string name="username_error">Username cannot be empty</string>
     <string name="password_error">Password cannot be empty</string>
     <string name="title_activity_token">TokenActivity</string>
+    <string name="deleteJob">Delete Job</string>
+    <string name="showAllJob">Show Jobs</string>
 </resources>

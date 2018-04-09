@@ -8,11 +8,12 @@ android {
     compileSdkVersion 26
     defaultConfig {
         applicationId "com.hospital.tokensystem"
-        minSdkVersion 24
+        minSdkVersion 21
         targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [HOCKEYAPP_APP_ID: "a89bfff97c8c464184aec78fb38aa422"]
     }
     buildTypes {
         release {
@@ -32,6 +33,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-    implementation 'com.firebase:firebase-jobdispatcher:0.8.5'
     implementation 'joda-time:joda-time:2.9.4'
+    compile 'net.hockeyapp.android:HockeySDK:5.1.0'
 }

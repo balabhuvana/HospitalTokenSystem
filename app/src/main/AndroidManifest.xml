@@ -4,10 +4,6 @@
 
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.CALL_PHONE" />
-    <uses-permission android:name="android.permission.PROCESS_INCOMING_CALLS" />
-    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
-
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
@@ -41,13 +37,6 @@
             android:exported="true" />
 
         <service
-            android:name="home.MyJobFireBaseService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.firebase.jobdispatcher.ACTION_EXECUTE" />
-            </intent-filter>
-        </service>
-        <service
             android:name="home.TestJobService"
             android:label="Word service"
             android:permission="android.permission.BIND_JOB_SERVICE"></service>
@@ -56,6 +45,9 @@
             android:name="home.AlarmReceiver"
             android:enabled="true"
             android:exported="true"></receiver>
+
+
+        <meta-data android:name="net.hockeyapp.android.appIdentifier" android:value="${HOCKEYAPP_APP_ID}" />
     </application>
 
 </manifest>

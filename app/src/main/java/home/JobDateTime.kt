@@ -10,5 +10,5 @@ class JobDateTime {
     var yearString: String? = null
     var hourString: String? = null
     var minuteString: String? = null
-    var scheduleString: String? = null
+    var scheduleString: Int? = null
 }

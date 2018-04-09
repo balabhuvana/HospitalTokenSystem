@@ -29,7 +29,7 @@ class HospitalityDBHelper(var context: Context) : SQLiteOpenHelper(context, DATA
                 COL_YEAR + " VARCHAR(256)," +
                 COL_HOUR + " VARCHAR(256)," +
                 COL_MINUTE + " VARCHAR(256)," +
-                COL_SCHEDULE + " VARCHAR(256))";
+                COL_SCHEDULE + " flag INTEGER DEFAULT 0)";
 
         db?.execSQL(createTable)
 
@@ -47,7 +47,7 @@ class HospitalityDBHelper(var context: Context) : SQLiteOpenHelper(context, DATA
         contentValue.put(COL_YEAR, jobDateTime.yearString)
         contentValue.put(COL_HOUR, jobDateTime.hourString)
         contentValue.put(COL_MINUTE, jobDateTime.minuteString)
-        contentValue.put(COL_SCHEDULE, jobDateTime.scheduleString)
+        contentValue.put(COL_SCHEDULE, 0)
         val result = db.insert(TABLE_NAME, null, contentValue)
         if (result == -1.toLong()) {
             Toast.makeText(context, "Table not created", Toast.LENGTH_LONG).show()
@@ -73,7 +73,36 @@ class HospitalityDBHelper(var context: Context) : SQLiteOpenHelper(context, DATA
                 jobDateTime.yearString = result.getString(result.getColumnIndex(COL_YEAR))
                 jobDateTime.hourString = result.getString(result.getColumnIndex(COL_HOUR))
                 jobDateTime.minuteString = result.getString(result.getColumnIndex(COL_MINUTE))
-                jobDateTime.scheduleString = result.getString(result.getColumnIndex(COL_SCHEDULE))
+                jobDateTime.scheduleString = result.getInt(result.getColumnIndex(COL_SCHEDULE))
+                jobModelList.add(jobDateTime)
+            } while (result.moveToNext())
+
+        }
+
+        result.close()
+        db.close()
+        return jobModelList
+    }
+
+    fun readSpecificJob(): ArrayList<JobDateTime> {
+        var jobModelList = ArrayList<JobDateTime>()
+
+        val db = this.readableDatabase
+
+        val query = "SELECT * FROM " + TABLE_NAME + " WHERE job_scheduled=" + "0"
+        val result = db.rawQuery(query, null)
+
+        if (result.moveToFirst()) {
+
+            do {
+                var jobDateTime = JobDateTime()
+                jobDateTime.jobId = result.getString(result.getColumnIndex(COL_ID))
+                jobDateTime.dateString = result.getString(result.getColumnIndex(COL_DATE))
+                jobDateTime.monthString = result.getString(result.getColumnIndex(COL_MONTH))
+                jobDateTime.yearString = result.getString(result.getColumnIndex(COL_YEAR))
+                jobDateTime.hourString = result.getString(result.getColumnIndex(COL_HOUR))
+                jobDateTime.minuteString = result.getString(result.getColumnIndex(COL_MINUTE))
+                jobDateTime.scheduleString = result.getInt(result.getColumnIndex(COL_SCHEDULE))
                 jobModelList.add(jobDateTime)
             } while (result.moveToNext())
 
@@ -85,9 +114,17 @@ class HospitalityDBHelper(var context: Context) : SQLiteOpenHelper(context, DATA
     }
 
 
+    fun updateJob(jobId: String) {
+        val db = this.writableDatabase
+        var contentValue = ContentValues()
+        contentValue.put(COL_SCHEDULE, 1)
+        db.update(TABLE_NAME, contentValue, "job_id=" + jobId, null);
+    }
+
+
     fun deleteJob() {
         val db = this.writableDatabase
-        db.execSQL("delete from "+ TABLE_NAME);
+        db.execSQL("delete from " + TABLE_NAME);
         //db.delete(TABLE_NAME, COL_ID + "=?", arrayOf(1.toString()))
         db.close()
     }

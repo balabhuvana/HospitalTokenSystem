@@ -1,5 +1,6 @@
 package home
 
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -7,12 +8,8 @@ import android.telephony.SmsManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.widget.Toast
-
-
 import com.android.internal.telephony.ITelephony
 import com.hospital.tokensystem.MyApplication
-
-import java.lang.reflect.Method
 
 class PhoneStateReceiver : BroadcastReceiver() {
     private val TAG = PhoneStateReceiver::class.java.simpleName
@@ -35,6 +32,7 @@ class PhoneStateReceiver : BroadcastReceiver() {
                 if (state == TelephonyManager.EXTRA_STATE_RINGING) {
                     Toast.makeText(context, "Ringing State Number is -", Toast.LENGTH_SHORT).show()
                     endCall(context)
+                    sendSMS(incomingNumber, "Your token number is 1")
                 }
             } else if (mApplication.isPhoneStateListening == false) {
                 Log.d(TAG, "onReceive - is normal ")
@@ -68,7 +66,8 @@ class PhoneStateReceiver : BroadcastReceiver() {
         try {
             Log.d(TAG, "")
             val smsManager = SmsManager.getDefault()
-            smsManager.sendTextMessage(phoneNo, "", msg, null, null)
+            //smsManager.sendTextMessage(phoneNo, "", msg, null, null)
+            smsManager.sendTextMessage(phoneNo, "+919892051914", msg, null, null);
             Toast.makeText(myContext, "Message Sent",
                     Toast.LENGTH_LONG).show()
         } catch (ex: Exception) {
